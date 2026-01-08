@@ -1,0 +1,51 @@
+import { PrismaService } from '@/prisma/prisma.service';
+import { Injectable, NotFoundException } from '@nestjs/common';
+import { AuthMethod } from '@prisma/__generated__';
+import { hash } from 'argon2';
+
+@Injectable()
+export class UserService {
+  public constructor(private readonly prismaService: PrismaService) {}
+
+  async findById(id: string) {
+    const user = await this.prismaService.user.findUnique({
+      where: { id },
+      include: {
+        accounts: true,
+      },
+    });
+    if (!user) throw new NotFoundException('Пользователи не найден.');
+
+    return user;
+  }
+  async findByEmail(email: string) {
+    return this.prismaService.user.findUnique({
+      where: { email },
+      include: {
+        accounts: true,
+      },
+    });
+  }
+  async create(
+    email: string,
+    password: string,
+    displayName: string,
+    method: AuthMethod,
+    isVerified: boolean,
+  ) {
+    const user = await this.prismaService.user.create({
+      data: {
+        email,
+        password: password ? await hash(password) : '',
+        displayName,
+        method,
+        isVerified,
+      },
+      include: {
+        accounts: true,
+      },
+    });
+
+    return user;
+  }
+}
